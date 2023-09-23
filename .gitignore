@@ -1,0 +1,16 @@
+cache/
+docs/
+flat/
+artifacts
+node_modules
+.env
+.secret
+coverage
+coverage.json
+.DS_Store
+compiler_config.json
+out/
+lib
+.deps
+package-lock.json
+yarn.lock

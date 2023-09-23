@@ -1,0 +1,9 @@
+{
+    "name": "eth-nyc-2023",
+    "description": "Mono repo for ETH Global NYC 2023 submission",
+    "version": "1.0.0",
+    "private": true,
+    "repository": "https://github.com/qi-protocol/?",
+    "author": "Charles Taylor",
+    "license": "MIT"
+}
