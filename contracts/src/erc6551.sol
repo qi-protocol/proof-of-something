@@ -13,13 +13,10 @@ import "openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
-import {ECDSA} from "lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-
 import "@6551/interfaces/IERC6551Account.sol";
 import "@6551/interfaces/IERC6551Executable.sol";
 
 contract ERC6551Account is IERC165, IERC1271, IERC6551Account, IERC6551Executable {
-    using ECDSA for bytes32;
 
     uint256 public state; // this is nonce
 
@@ -35,7 +32,7 @@ contract ERC6551Account is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
     ) external payable returns (bytes memory result) {
         /**
           * execution flow should be
-          * call target contract << call 4337 contracts << call 6551 contract << EntryPoint
+          * call target contract << call 4337 contracts << EntryPoint << call 6551 contract
           * this means that the owner of the 4337 is the 6551
           * 4337 ecdsa recovery >> 6551
           * that means 6551 needs to encode and sign it's input data;
@@ -46,47 +43,26 @@ contract ERC6551Account is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
           * needs state to be in the signature to protect against sybil attacks
 
          */
-        // need to make sure the size of the calldata
-        // calldata = (size + 32) - (4 + 32*4) => size + 32 >= 229
-        // first 132 are garbage
-        // next 32 is data length
-        // next 32 + 65 is signature
-        // if next 32 is not 0, 32 + ? is userop
-        // means size must be at least 132 + 97
+        require(to != address(this), "weird operation");
+        require(address(this).balance >= value, "Insufficent payment");
+        require(operation == 0, "Only call operations are supported");
+
         uint256 size = data.length;
         require(size >= 65, "Invalid data length");
         bytes memory signature_ = data[:65];
-        bytes memory userop_ = data[65:size];
+        bytes memory callData_ = data[65:size];
+        bytes32 hash_ = keccak256(abi.encode(state, callData_));
+        bool isValid = SignatureChecker.isValidSignatureNow(owner(), hash_, signature_);
+        require(isValid, "Invalid signature");
 
         // normally (4337-4337): entrypoint > 4337 > 4337
         // here (6551-4337): 6551 >> entrypoint >> 4337
-        payable(to).call
-
-
-        uint256 size = msg.data.length;
-        require(size >= 229, "Invalid data length");
-        bytes memory signature_ = msg.data[197:229];
-        //bytes memory userop = msg.data[229:size];
-
-        bytes32 hash_ = keccak256(state, msg.data[229:size])
-        bytes memory signature_ = msg.data[133:197];
-        (address recovered, ECDSA.RecoverError error) = ECDSA.tryRecover(hash_.toEthSignedMessageHash(), signature_);
-        if (error != ECDSA.RecoverError.NoError) {
-            revert BadSignature();
-        }
-
-        if(recovered != account_) {
-            revert InvalidSignature(account_, recovered);
-        }
-
-
-        revert _isValidSigner(recovered, "Invalid signer");
-        require(operation == 0, "Only call operations are supported");
-
+        // biggest pitfall is you cannot use bundler
+        
         ++state;
 
         bool success;
-        (success, result) = to.call{value: value}(msg.data[229:size]);
+        (success, result) = payable(to).call{value: value}(userops_)
 
         if (!success) {
             assembly {
@@ -96,26 +72,18 @@ contract ERC6551Account is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
     }
 
     function isValidSigner(address signer, bytes calldata data) external view returns (bytes4) {
-        if (_isValidSigner(signer)) { // see already have the bytes to have a sig
-            return IERC6551Account.isValidSigner.selector;
-        }
-        uint256 size = msg.data.length;
-        require(size >= 64, "Invalid data length");
-        bytes memory signature_ = msg.data[647:229];
-        //bytes memory userop = msg.data[229:size];
+        uint256 size = data.length;
+        require(size >= 65, "Invalid data length");
+        bytes memory signature_ = data[:65];
+        bytes memory callData_ = data[65:size];
+        bytes32 hash_ = keccak256(abi.encode(state, callData_));
+        bool isValid = SignatureChecker.isValidSignatureNow(signer, hash_, signature_);
 
-        bytes32 hash_ = keccak256(state, msg.data[229:size])
-        bytes memory signature_ = msg.data[133:197];
-        (address recovered, ECDSA.RecoverError error) = ECDSA.tryRecover(hash_.toEthSignedMessageHash(), signature_);
-        if (error != ECDSA.RecoverError.NoError) {
-            revert BadSignature();
+        if (isValid) {
+            return IERC1271.isValidSignature.selector;
         }
 
-        if(recovered != account_) {
-            revert InvalidSignature(account_, recovered);
-        }
-
-        return bytes4(0);
+        return "";
     }
 
     function isValidSignature(bytes32 hash, bytes memory signature)
