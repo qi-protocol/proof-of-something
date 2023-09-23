@@ -2,5 +2,5 @@
 pragma solidity^0.8.19;
 
 contract erc6551 {
-    constructor payable();
+    constructor() payable {}
 }
