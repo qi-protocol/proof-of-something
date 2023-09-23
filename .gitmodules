@@ -17,3 +17,6 @@
 [submodule "contracts/lib/@6551"]
 	path = contracts/lib/@6551
 	url = https://github.com/erc6551/reference
+[submodule "contracts/lib/worldcoin"]
+	path = contracts/lib/worldcoin
+	url = https://github.com/worldcoin/world-id-starter
