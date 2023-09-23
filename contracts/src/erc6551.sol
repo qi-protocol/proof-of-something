@@ -53,6 +53,16 @@ contract ERC6551Account is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
         // next 32 + 65 is signature
         // if next 32 is not 0, 32 + ? is userop
         // means size must be at least 132 + 97
+        uint256 size = data.length;
+        require(size >= 65, "Invalid data length");
+        bytes memory signature_ = data[:65];
+        bytes memory userop_ = data[65:size];
+
+        // normally (4337-4337): entrypoint > 4337 > 4337
+        // here (6551-4337): 6551 >> entrypoint >> 4337
+        payable(to).call
+
+
         uint256 size = msg.data.length;
         require(size >= 229, "Invalid data length");
         bytes memory signature_ = msg.data[197:229];
@@ -154,18 +164,6 @@ contract ERC6551Account is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
     }
 
     function _isValidSigner(address signer) internal view returns (bool) {
-        /**
-          * execution flow should be
-          * call target contract << call 4337 contracts << call 6551 contract << EntryPoint
-          * this means that the owner of the 4337 is the 6551
-          * 4337 ecdsa recovery >> 6551
-          * that means 6551 needs to encode and sign it's input data;
-          * maybe paid for by biconmoy, maybe not idc
-          *
-          * data order: blah, blah, slot, blah, calldata
-          * needs state to be in the signature to protect against sybil attacks
-
-         */
         return signer == owner();
     }
 }
