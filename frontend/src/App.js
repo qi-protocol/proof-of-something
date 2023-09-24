@@ -13,6 +13,11 @@ import * as React from 'react'
 
 import { usePrepareContractWrite, useContractWrite, useWaitForTransaction } from 'wagmi'
 
+const address6551 = '';
+const address4337factory = ''
+const addressEntrypoint = ''
+const addressPaymaster = ''
+
 
 const { chains, publicClient } = configureChains(
   [mainnet],

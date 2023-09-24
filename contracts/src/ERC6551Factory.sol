@@ -1,1 +1,0 @@
-// worldcoin > unique nullifier hash
